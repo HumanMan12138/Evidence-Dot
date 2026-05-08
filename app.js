@@ -31,6 +31,21 @@ const perspectives = {
   }
 };
 
+const markerStrategies = {
+  balanced: {
+    label: "混合标注",
+    copy: "同时保留数据、情绪、AI 痕迹和关键观点，帮助用户先建立完整上下文。"
+  },
+  short: {
+    label: "技术面优先标注",
+    copy: "优先标注放量、突破、压力位、趋势、短期情绪和交易行为；基本面信息只保留高风险或核心争议点。"
+  },
+  value: {
+    label: "基本面优先标注",
+    copy: "优先标注财报、现金流、估值、业绩口径和来源缺口；纯短线信号只保留明显情绪或生成风险点。"
+  }
+};
+
 const stateOrder = ["browsing", "interest", "research"];
 const perspectiveOrder = ["balanced", "short", "value"];
 const defaultModel = "deepseek-chat";
@@ -654,8 +669,112 @@ function currentPoint() {
     return appState.customResult;
   }
   const post = currentPost();
-  const point = post.points[appState.pointId] || Object.values(post.points)[0];
+  const visibleIds = visiblePointIds(post, appState.perspective);
+  const selectedId = visibleIds.includes(appState.pointId) ? appState.pointId : visibleIds[0];
+  const point = post.points[selectedId] || Object.values(post.points)[0];
   return point;
+}
+
+function pointProfileText(point = {}) {
+  const sourceLabels = Array.isArray(point.sources)
+    ? point.sources.map((source) => (Array.isArray(source) ? source[0] : source)).filter(Boolean)
+    : [];
+
+  return [
+    point.claim,
+    point.contentType,
+    point.claimType,
+    point.mainValue,
+    point.unsuitable,
+    point.verification,
+    point.evidence,
+    point.tone,
+    point.emotionRisk,
+    point.generatedTrace,
+    point.realSignal,
+    point.humanGap,
+    point.dispute,
+    point.tracker?.support,
+    point.tracker?.oppose,
+    ...sourceLabels
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function pointRelevanceScores(point = {}) {
+  const text = pointProfileText(point);
+  const technical = /技术|短线|放量|突破|压力位|支撑|趋势|回撤|量能|RSI|MACD|K线|均线|看盘|题材|热度|资金|冲高|回落|波动|催化|盘面|主力|上车|追高|止损|买入|卖出|持仓|FOMO|恐慌/i.test(text)
+    ? 1
+    : 0;
+  const fundamental = /基本面|价值|财报|公告|营收|收入|利润|净利|毛利|现金流|自由现金流|FCF|ROE|ROA|PE|PB|DCF|估值|负债|资产|业绩|增长|公司|商业模式|护城河|管理层|SEC|年报|季报|10-K|Investor Relations/i.test(text)
+    ? 1
+    : 0;
+  const universal = /生成|AI|模板|情绪|共鸣|个人经历|亏损|不充分|缺少来源|不一致|绝对化|行动号召|最后上车|快跑|必涨|必跌|FOMO|恐慌|强乐观|强悲观/i.test(text)
+    ? 1
+    : 0;
+  const risk =
+    universal ||
+    /不充分|缺少|不一致|FOMO|恐慌|强乐观|强悲观|生成|模板|绝对化|行动号召/.test(
+      `${point.verification || ""} ${point.evidence || ""} ${point.emotionRisk || ""} ${point.generatedTrace || ""}`
+    )
+      ? 1
+      : 0;
+
+  return { technical, fundamental, universal, risk };
+}
+
+function pointMarkerPriority(point, perspective) {
+  const scores = pointRelevanceScores(point);
+  if (perspective === "short") return scores.technical * 5 + scores.risk * 3 + scores.universal * 2 + scores.fundamental * 0.4;
+  if (perspective === "value") return scores.fundamental * 5 + scores.risk * 3 + scores.universal * 2 + scores.technical * 0.4;
+  return 10 + scores.technical + scores.fundamental + scores.universal + scores.risk;
+}
+
+function pointMatchesPerspective(point, perspective) {
+  const scores = pointRelevanceScores(point);
+  if (perspective === "short") return Boolean(scores.technical || scores.risk || scores.universal);
+  if (perspective === "value") return Boolean(scores.fundamental || scores.risk || scores.universal);
+  return true;
+}
+
+function visiblePointIds(post = currentPost(), perspective = appState.perspective) {
+  const entries = Object.entries(post.points || {}).map(([id, point], index) => ({
+    id,
+    index,
+    direct: pointMatchesPerspective(point, perspective),
+    priority: pointMarkerPriority(point, perspective)
+  }));
+
+  if (!entries.length) return [];
+  if (perspective === "balanced") return entries.map((item) => item.id);
+
+  const maxDots = Math.min(2, entries.length);
+  const directMatches = entries
+    .filter((item) => item.direct)
+    .sort((a, b) => b.priority - a.priority || a.index - b.index)
+    .slice(0, maxDots);
+  const selected = directMatches.length
+    ? directMatches
+    : entries.sort((a, b) => b.priority - a.priority || a.index - b.index).slice(0, 1);
+
+  return selected.sort((a, b) => a.index - b.index).map((item) => item.id);
+}
+
+function firstVisiblePointId(post = currentPost(), perspective = appState.perspective) {
+  return visiblePointIds(post, perspective)[0] || Object.keys(post.points || {})[0] || appState.pointId;
+}
+
+function applyPerspective(nextPerspective) {
+  const post = currentPost();
+  appState = {
+    ...appState,
+    perspective: nextPerspective,
+    pointId: firstVisiblePointId(post, nextPerspective),
+    sheetOpen: false,
+    tracked: false
+  };
+  renderAll();
 }
 
 function badgeClass(value) {
@@ -788,19 +907,23 @@ function splitScenarioSentences(text) {
   return sentences.map((item) => item.trim()).filter(Boolean).slice(0, 10);
 }
 
-function scoreScenarioSentence(sentence, index) {
+function scoreScenarioSentence(sentence, index, perspective = appState.perspective) {
   let score = Math.max(0, 4 - index * 0.35);
+  const techHit = /突破|放量|压力位|支撑|趋势|回撤|短期|技术面|量能|RSI|MACD|K线|均线|看盘|题材|资金|冲高|回落|追高|止损|买入|卖出|持仓|FOMO|恐慌/.test(sentence);
+  const valueHit = /营收|收入|利润|现金流|估值|财报|公告|来源|同比|环比|毛利|净利|负债|增长|基本面|PE|PB|ROE|DCF|FCF|自由现金流|业绩/.test(sentence);
   if (/\d+(\.\d+)?%|\d+(\.\d+)?倍|\d+(\.\d+)?亿|\d+(\.\d+)?万|PE|PB|ROE|DCF|RSI|MACD/i.test(sentence)) score += 4;
   if (/营收|收入|利润|现金流|估值|财报|公告|来源|同比|环比|毛利|净利|负债|增长/.test(sentence)) score += 3;
   if (/突破|放量|压力位|支撑|趋势|回撤|短期|长期|技术面|基本面|买入|卖出|持仓/.test(sentence)) score += 3;
   if (/最后上车|错过|赶紧|闭眼|必涨|必跌|稳了|恐慌|暴跌|套|亏/.test(sentence)) score += 3;
   if (/我觉得|我认为|很多人|大家|历史上|案例|验证|靠山|确定/.test(sentence)) score += 2;
-  return score;
+  if (perspective === "short") score += techHit ? 5 : valueHit ? -1.5 : 0;
+  if (perspective === "value") score += valueHit ? 5 : techHit ? -1.5 : 0;
+  return Math.max(0, score);
 }
 
-function pickScenarioPointIndexes(sentences) {
+function pickScenarioPointIndexes(sentences, perspective = appState.perspective) {
   const ranked = sentences
-    .map((sentence, index) => ({ index, score: scoreScenarioSentence(sentence, index) }))
+    .map((sentence, index) => ({ index, score: scoreScenarioSentence(sentence, index, perspective) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, Math.min(3, sentences.length))
     .map((item) => item.index)
@@ -825,7 +948,7 @@ function scenarioPointFromSentence(sentence, modelResult, provider, isPrimary) {
 
 function buildCustomScenarioPost(text, result) {
   const sentences = splitScenarioSentences(text);
-  const pointIndexes = pickScenarioPointIndexes(sentences);
+  const pointIndexes = pickScenarioPointIndexes(sentences, appState.perspective);
   const pointIds = new Map();
   const points = {};
   const provider = result.provider || "local";
@@ -938,11 +1061,7 @@ function renderPreferenceButtons() {
 
   container.querySelectorAll("button").forEach((button) => {
     button.addEventListener("click", () => {
-      appState = {
-        ...appState,
-        perspective: button.dataset.perspective
-      };
-      renderAll();
+      applyPerspective(button.dataset.perspective);
     });
   });
 }
@@ -976,7 +1095,7 @@ function renderWorkspaceProfileControls() {
   current.innerHTML = `
     当前输出配置：<strong>${escapeHtml(states[appState.userState].label)}</strong>
     · <strong>${escapeHtml(perspectives[appState.perspective].label)}</strong>
-    <br />影响范围：证据点弹窗深度、优先指标、推送预览与争议追踪展示。
+    <br />影响范围：正文证据点选择、弹窗深度、优先指标、推送预览与争议追踪展示。
   `;
 
   stateContainer.querySelectorAll("button").forEach((button) => {
@@ -991,11 +1110,7 @@ function renderWorkspaceProfileControls() {
 
   preferenceContainer.querySelectorAll("button").forEach((button) => {
     button.addEventListener("click", () => {
-      appState = {
-        ...appState,
-        perspective: button.dataset.perspective
-      };
-      renderAll();
+      applyPerspective(button.dataset.perspective);
     });
   });
 }
@@ -1020,7 +1135,7 @@ function renderPostTabs() {
       appState = {
         ...appState,
         postId: post.id,
-        pointId: Object.keys(post.points)[0],
+        pointId: firstVisiblePointId(post, appState.perspective),
         sheetOpen: false,
         sheetMode: post.isCustom ? "custom" : "point",
         tracked: false
@@ -1031,9 +1146,11 @@ function renderPostTabs() {
 }
 
 function renderParagraph(segments) {
+  const visiblePoints = new Set(visiblePointIds(currentPost(), appState.perspective));
   return segments
     .map((segment) => {
       if (!segment.point) return escapeHtml(segment.text);
+      if (!visiblePoints.has(segment.point)) return escapeHtml(segment.text);
       const point = currentPost().points[segment.point];
       const dotType = evidenceDotType(point);
       const tip = evidenceDotTip(dotType);
@@ -1279,11 +1396,7 @@ function renderPerspectiveInsight(point) {
 
   $("#perspectiveInsight").querySelectorAll("[data-switch-perspective]").forEach((button) => {
     button.addEventListener("click", () => {
-      appState = {
-        ...appState,
-        perspective: button.dataset.switchPerspective
-      };
-      renderAll();
+      applyPerspective(button.dataset.switchPerspective);
     });
   });
 }
@@ -1425,7 +1538,7 @@ async function analyzeCustomInput(source = "tools") {
   }
   result.warning = warning;
   const customPost = buildCustomScenarioPost(text, result);
-  const firstPointId = Object.keys(customPost.points)[0];
+  const firstPointId = firstVisiblePointId(customPost, appState.perspective);
 
   appState = {
     ...appState,
@@ -1636,6 +1749,21 @@ function renderProfileStrip() {
     appState.profileControlsOpen = !appState.profileControlsOpen;
     renderAll();
   };
+}
+
+function renderMarkerStrategy() {
+  const target = $("#markerStrategy");
+  if (!target) return;
+
+  const post = currentPost();
+  const total = Object.keys(post.points || {}).length;
+  const visible = visiblePointIds(post, appState.perspective).length;
+  const strategy = markerStrategies[appState.perspective] || markerStrategies.balanced;
+
+  target.innerHTML = `
+    <strong>${escapeHtml(strategy.label)} · ${visible}/${total} 个点</strong>
+    <span>${escapeHtml(strategy.copy)}</span>
+  `;
 }
 
 function renderQuickScenarioControls() {
@@ -1854,6 +1982,7 @@ function renderProfileSkills() {
 function renderAll() {
   renderModeTabs();
   renderProfileStrip();
+  renderMarkerStrategy();
   renderStateButtons();
   renderPreferenceButtons();
   renderWorkspaceProfileControls();

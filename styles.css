@@ -438,6 +438,23 @@ h3 {
   background: var(--blue-soft);
 }
 
+.marker-strategy {
+  flex: 1 1 280px;
+  min-width: 220px;
+  border-left: 1px solid var(--line);
+  padding-left: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.marker-strategy strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
 .dot-legend {
   display: flex;
   flex-wrap: wrap;
@@ -1478,6 +1495,14 @@ h3 {
   .profile-strip {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .marker-strategy {
+    min-width: 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    padding-top: 10px;
+    padding-left: 0;
   }
 
   .control-group {
