@@ -1,0 +1,51 @@
+{
+  "name": "evidence-dot",
+  "productName": "Evidence Dot",
+  "version": "1.0.0",
+  "description": "A desktop AI evidence assistant demo for investment content reading.",
+  "author": "Evidence Dot Demo",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "desktop": "node electron/launch.js",
+    "build:win": "electron-builder --win portable",
+    "pack:win": "electron-builder --win dir"
+  },
+  "build": {
+    "appId": "com.evidencedot.desktop",
+    "productName": "Evidence Dot",
+    "compression": "normal",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "api/**/*",
+      "electron/**/*",
+      "app.js",
+      "index.html",
+      "styles.css",
+      "server.js",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Evidence-Dot-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Evidence-Dot-${version}-${arch}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^26.8.1"
+  }
+}

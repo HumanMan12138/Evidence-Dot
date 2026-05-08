@@ -1,0 +1,8 @@
+*.log
+node_modules/
+.vercel/
+dist/
+Evidence Dot Friend Package/
+Evidence-Dot-Friend-Package.zip
+*.lnk
+*.cmd

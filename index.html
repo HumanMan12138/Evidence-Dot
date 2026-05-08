@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evidence Dot · 小红书投资内容 AI 证据点</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="product-bar" aria-label="Demo overview">
+        <div>
+          <p class="eyebrow"><span></span> Evidence Dot Desktop</p>
+          <h1>Evidence Dot · 小红书投资内容 AI 证据点</h1>
+        </div>
+        <div class="status-stack" aria-live="polite">
+          <div class="status-pill">
+            <span>用户状态</span>
+            <strong id="currentState">浏览态</strong>
+          </div>
+          <div class="status-pill">
+            <span>历史偏好</span>
+            <strong id="currentPerspective">混合</strong>
+          </div>
+        </div>
+      </section>
+
+      <nav class="mode-tabs" aria-label="Demo sections">
+        <button class="active" type="button" data-view="experience">真实交互体验</button>
+        <button type="button" data-view="tools">分析工作台</button>
+        <button type="button" data-view="logic">产品逻辑与理论</button>
+      </nav>
+
+      <section class="tab-panel active" id="experienceTab" aria-label="XHS native interaction demo">
+        <section class="experience-shell">
+          <div class="experience-head">
+              <p class="eyebrow"><span></span> 原生阅读场景</p>
+              <h2>像刷一篇小红书笔记一样体验</h2>
+            </div>
+            <p>
+              先切换一种用户行为，再点击正文里的红色证据点。AI 判断只在用户主动触发时弹出，避免破坏浏览流。
+            </p>
+          </div>
+
+          <section class="scenario-composer" aria-label="Generate XHS scenario">
+            <div class="composer-copy">
+              <p class="eyebrow"><span></span> 30 秒产品主线</p>
+              <h3>输入投资笔记，生成可点击证据点的小红书阅读场景</h3>
+            </div>
+            <textarea id="quickScenarioInput" rows="3" placeholder="例如：段永平买了泡泡玛特，好多人觉得找到靠山了，但短期该跌还是会跌，历史上巴菲特买入后被套的情况也很多。"></textarea>
+            <div class="composer-actions">
+              <div class="connection-chip" id="apiConnectionStatus">AI 未连接 · 可用本地兜底</div>
+              <button class="secondary-button" id="openApiSetupButton" type="button">API 设置</button>
+              <button class="secondary-button" id="runStoryDemoButton" type="button">一键演示</button>
+              <button class="primary-button" id="quickScenarioButton" type="button">生成阅读场景</button>
+            </div>
+          </section>
+
+          <section class="profile-strip" aria-label="Simulated reader profile">
+            <button class="profile-chip" id="profileToggleButton" type="button"></button>
+            <div class="dot-legend" aria-label="Evidence dot legend">
+              <span><i class="legend-dot dot-data"></i> 数据核验</span>
+              <span><i class="legend-dot dot-emotion"></i> 情绪风险</span>
+              <span><i class="legend-dot dot-ai"></i> 生成痕迹</span>
+            </div>
+          </section>
+
+          <section class="controls-row in-experience" aria-label="Context switches">
+            <div class="control-group">
+              <span class="control-label">当下浏览状态</span>
+              <div class="segmented" id="stateButtons"></div>
+            </div>
+            <div class="control-group compact">
+              <span class="control-label">历史浏览偏好</span>
+              <div class="segmented small" id="preferenceButtons"></div>
+            </div>
+          </section>
+
+          <section class="interaction-stage">
+            <div class="phone-surface immersive-phone" aria-label="XHS-like note reader">
+              <div class="phone-topbar">
+                <div class="brand-mark">R</div>
+                <div>
+                  <strong>投资内容流</strong>
+                  <span>关注 · 发现 · 搜索</span>
+                </div>
+              </div>
+
+              <nav class="post-tabs" id="postTabs" aria-label="Example posts"></nav>
+
+              <article class="note-view" id="noteView"></article>
+            </div>
+          </section>
+        </section>
+
+        <section class="judgment-sheet" id="judgmentSheet" aria-live="polite" aria-label="AI judgment"></section>
+      </section>
+
+      <section class="tab-panel" id="toolsTab" aria-label="Analysis workspace">
+        <section class="experience-shell tools-shell">
+          <div class="experience-head">
+            <div>
+              <p class="eyebrow"><span></span> Analysis Workspace</p>
+              <h2>行为画像与自定义内容分析</h2>
+            </div>
+            <p>
+              这里放置会改变用户视角或主动调用模型的工具能力，避免打断主阅读界面的类小红书体验。
+            </p>
+          </div>
+
+          <section class="manual-profile-panel" aria-label="Manual profile controls">
+            <div>
+              <p class="eyebrow"><span></span> 手动演示控制</p>
+              <h3>直接指定用户状态与历史偏好</h3>
+              <p>用于 Demo 演示：先选择浏览态/兴趣态/研究态，以及技术面/基本面/混合偏好，再回到真实交互界面查看同一证据点的输出变化。</p>
+            </div>
+            <div class="manual-profile-controls">
+              <div class="control-group">
+                <span class="control-label">用户状态</span>
+                <div class="segmented" id="workspaceStateButtons"></div>
+              </div>
+              <div class="control-group">
+                <span class="control-label">历史偏好</span>
+                <div class="segmented small" id="workspacePreferenceButtons"></div>
+              </div>
+              <div class="manual-profile-current" id="workspaceProfileCurrent"></div>
+            </div>
+          </section>
+
+          <section class="skill-lab" aria-label="Behavioral finance profile skills">
+            <div>
+              <p class="eyebrow"><span></span> 行为画像 Skills</p>
+              <h3>用浏览记录、帖子和评论判断状态与风格</h3>
+              <p>粘贴一段模拟用户行为，软件会用推荐系统信号运行两个本地判定 skill：曝光、有效阅读、深度互动、搜索、来源核验和负反馈都会影响结果。</p>
+            </div>
+            <textarea id="profileInput" rows="5" placeholder="例如：浏览记录：今天在推荐流连续看了 6 篇机器人板块笔记，收藏 2 篇 K 线突破分析，评论“这个压力位怎么看”；自己的帖子：放量突破后回踩 5 日线，短线情绪还在。"></textarea>
+            <div class="skill-actions">
+              <span id="profileSkillMode">输入行为记录后运行判定</span>
+              <button class="primary-button" id="runProfileSkillsButton" type="button">运行并应用 Skills</button>
+            </div>
+            <div class="skill-results" id="profileSkillOutput"></div>
+          </section>
+
+          <section class="custom-analyzer" aria-label="Custom investment note analyzer">
+            <div>
+              <p class="eyebrow"><span></span> 自定义输入</p>
+              <h3>输入任意投资相关内容</h3>
+              <p>粘贴任意小红书投资笔记，让 AI 生成同一套内容理解与证据判断；无 Key 或调用失败时会自动使用本地兜底。</p>
+            </div>
+            <textarea id="customInput" rows="5" placeholder="例如：今天看到某公司放量突破，感觉是最后上车机会，营收今年肯定还能增长 50%..."></textarea>
+            <div class="custom-actions">
+              <span id="analysisMode">输入 DeepSeek API Key 后可直接调用模型</span>
+              <button class="secondary-button" id="testApiButton" type="button">测试连接</button>
+              <button class="primary-button" id="analyzeCustomButton" type="button">分析这段内容</button>
+            </div>
+            <details class="api-settings" open>
+              <summary>模型 API 设置</summary>
+              <div class="api-grid">
+                <label>
+                  <span>API Key</span>
+                  <input id="apiKeyInput" type="password" autocomplete="off" placeholder="sk-..." />
+                </label>
+                <label>
+                  <span>Model</span>
+                  <input id="apiModelInput" type="text" placeholder="deepseek-chat" />
+                </label>
+                <label>
+                  <span>Base URL</span>
+                  <input id="apiBaseUrlInput" type="url" placeholder="https://api.deepseek.com" />
+                </label>
+              </div>
+              <p>填入 DeepSeek API Key、Model 和 Base URL 即可调用本地 <code>/api/analyze</code>。Key 只用于本次会话。</p>
+            </details>
+          </section>
+        </section>
+      </section>
+
+      <section class="tab-panel" id="logicTab" aria-label="Product logic and theory">
+        <section class="logic-brief">
+          <div class="logic-card">
+            <h3>用户状态决定信息深度</h3>
+            <p>状态 Skill 参考推荐系统链路，把曝光、有效阅读、深度互动、搜索、来源点击和负反馈转成浏览态、兴趣态或研究态。</p>
+          </div>
+          <div class="logic-card">
+            <h3>历史偏好决定信息结构</h3>
+            <p>风格 Skill 从浏览记录、自己的帖子和评论识别技术面、基本面或混合，不和当下状态绑定。技术面优先量价、趋势和热度；基本面优先财务指标、估值假设和官方来源。</p>
+          </div>
+          <div class="logic-card">
+            <h3>内容类型决定判断边界</h3>
+            <p>真实亏损经历不应被标为低质量；它的价值是情绪共鸣和风险感知，不是投资依据。</p>
+          </div>
+          <div class="logic-card">
+            <h3>行为金融支持分类</h3>
+            <p>浏览态对应注意力驱动和显著线索影响；兴趣态代表涉入上升；研究态对应更主动的信息搜寻、证据核对和假设比较。</p>
+          </div>
+          <div class="logic-card">
+            <h3>交互提示</h3>
+            <p>红点不是审核判决，而是 AI 对这段内容的理解入口。点击后才展示内容类型、证据状态、情绪倾向、生成痕迹和争议追踪。</p>
+          </div>
+          <div class="logic-card">
+            <h3>产品原则</h3>
+            <p>不提供买卖建议，不给目标价，不预测收益。核心是帮用户理解内容能带来什么、不能被用来做什么。</p>
+          </div>
+        </section>
+
+        <section class="logic-workspace">
+          <aside class="ai-panel" aria-label="AI evidence panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow"><span></span> AI 理解层</p>
+                <h2 id="panelTitle">点击正文里的证据点</h2>
+              </div>
+              <button class="icon-button" id="reduceHintsButton" type="button" aria-label="减少提醒">
+                <span aria-hidden="true">−</span>
+              </button>
+            </div>
+
+            <div class="panel-grid" id="panelGrid"></div>
+            <div class="insight-block" id="selectedInsight"></div>
+            <div class="insight-block" id="perspectiveInsight"></div>
+            <div class="insight-block" id="trackerBlock"></div>
+            <div class="insight-block" id="pushBlock"></div>
+          </aside>
+        </section>
+
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
